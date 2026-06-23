@@ -19,11 +19,6 @@ class Settings(BaseSettings):
     ubc_summon_id: str = ""
     ubc_summon_key: str = ""
 
-    # API server
-    host: str = "0.0.0.0"
-    port: int = 8000
-    debug: bool = False
-
     # LangSmith (optional tracing)
     langsmith_api_key: str = ""
     langchain_project: str = "agentic-research"

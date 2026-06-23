@@ -19,9 +19,9 @@ class PlannerDecision(BaseModel):
 
 
 _planner_llm = ChatOllama(model=settings.ollama_model).with_structured_output(PlannerDecision)
-
-
-
+_researcher_llm = ChatAnthropic(model=settings.anthropic_model).bind_tools(TOOLS)
+_reader_llm = ChatGoogleGenerativeAI(model=settings.gemini_model)
+_synthesizer_llm = ChatAnthropic(model=settings.anthropic_model)
 
 _ACTION_TO_NEXT = {
     "search": "researcher",
