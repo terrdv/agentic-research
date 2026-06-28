@@ -15,10 +15,6 @@ class Settings(BaseSettings):
     # Ollama (local)
     ollama_model: str = "llama3.2"
 
-    # UBC Library Summon API
-    ubc_summon_id: str = ""
-    ubc_summon_key: str = ""
-
     # LangSmith (optional tracing)
     langsmith_api_key: str = ""
     langchain_project: str = "agentic-research"

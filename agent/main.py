@@ -3,10 +3,11 @@
 Protocol:
   stdin:  one JSON object per line — {"query": "...", "max_iterations": 5}
   stdout: one JSON event per line (flushed immediately)
-    {"type": "node_start", "node": "planner"}
-    {"type": "message",    "node": "planner",  "content": "..."}
+    {"type": "node_start",  "node": "planner"}
+    {"type": "message",     "node": "planner", "content": "..."}
+    {"type": "analysis",    "summary": "...", "gaps": [...], "charts": [...]}
     {"type": "done"}
-    {"type": "error",      "message": "..."}
+    {"type": "error",       "message": "..."}
 """
 
 import json
@@ -33,6 +34,12 @@ def run_query(query: str, max_iterations: int = 5) -> None:
     for chunk in graph.stream(initial_state, stream_mode="updates"):
         for node_name, updates in chunk.items():
             _emit({"type": "node_start", "node": node_name})
+
+            if node_name == "analyst" and updates.get("analyst_output"):
+                out = updates["analyst_output"]
+                _emit({"type": "analysis", **out})
+                continue
+
             for msg in updates.get("messages", []):
                 content = msg.content if hasattr(msg, "content") else str(msg)
                 if content:

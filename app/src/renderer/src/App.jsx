@@ -1,8 +1,14 @@
 import { useState, useEffect, useRef } from 'react'
+import {
+  BarChart, Bar,
+  LineChart, Line,
+  ScatterChart, Scatter,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+} from 'recharts'
 
 const NODE_LABELS = {
   planner: 'Planning',
-  researcher: 'Researching',
+  evidence_aggregation: 'Gathering Evidence',
   tools: 'Searching',
   synthesizer: 'Synthesizing',
 }
@@ -15,7 +21,7 @@ export default function App() {
 
   useEffect(() => {
     const handler = (event) => {
-      if (event.type === 'node_start') return  // suppress noise; only show messages
+      if (event.type === 'node_start') return
       setEvents((prev) => [...prev, event])
       if (event.type === 'done' || event.type === 'error') setRunning(false)
     }
@@ -71,13 +77,90 @@ function EventBlock({ event }) {
       </div>
     )
   }
+
+  if (event.type === 'analysis') {
+    return <AnalysisBlock event={event} />
+  }
+
   if (event.type === 'done') {
     return <div style={styles.done}>Done</div>
   }
+
   if (event.type === 'error') {
     return <div style={styles.error}>Error: {event.message}</div>
   }
+
   return null
+}
+
+function AnalysisBlock({ event }) {
+  return (
+    <div style={styles.analysisCard}>
+      <div style={styles.nodeLabel}>Analysis</div>
+
+      <p style={styles.summary}>{event.summary}</p>
+
+      {event.gaps?.length > 0 && (
+        <div style={styles.section}>
+          <div style={styles.sectionTitle}>Gaps &amp; Open Questions</div>
+          <ul style={styles.gapList}>
+            {event.gaps.map((gap, i) => <li key={i}>{gap}</li>)}
+          </ul>
+        </div>
+      )}
+
+      {event.charts?.map((chart, i) => (
+        <div key={i} style={styles.section}>
+          <div style={styles.sectionTitle}>{chart.title}</div>
+          <ChartBlock chart={chart} />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function ChartBlock({ chart }) {
+  const data = chart.data.map((d) => ({ name: d.label, value: d.value }))
+
+  const axes = (
+    <>
+      <CartesianGrid strokeDasharray="3 3" />
+      <XAxis dataKey="name" label={{ value: chart.x_label, position: 'insideBottom', offset: -4 }} />
+      <YAxis label={{ value: chart.y_label, angle: -90, position: 'insideLeft' }} />
+      <Tooltip />
+    </>
+  )
+
+  if (chart.chart_type === 'line') {
+    return (
+      <ResponsiveContainer width="100%" height={260}>
+        <LineChart data={data} margin={{ top: 8, right: 16, bottom: 24, left: 32 }}>
+          {axes}
+          <Line type="monotone" dataKey="value" stroke="#2563eb" dot={false} />
+        </LineChart>
+      </ResponsiveContainer>
+    )
+  }
+
+  if (chart.chart_type === 'scatter') {
+    return (
+      <ResponsiveContainer width="100%" height={260}>
+        <ScatterChart margin={{ top: 8, right: 16, bottom: 24, left: 32 }}>
+          {axes}
+          <Scatter data={data} fill="#2563eb" />
+        </ScatterChart>
+      </ResponsiveContainer>
+    )
+  }
+
+  return (
+    <ResponsiveContainer width="100%" height={260}>
+      <BarChart data={data} margin={{ top: 8, right: 16, bottom: 24, left: 32 }}>
+        {axes}
+        <Bar dataKey="value" fill="#2563eb" radius={[3, 3, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  )
 }
 
 const styles = {
@@ -87,16 +170,8 @@ const styles = {
     margin: '0 auto',
     fontFamily: 'system-ui, sans-serif',
   },
-  title: {
-    margin: '0 0 24px',
-    fontSize: '24px',
-    fontWeight: 600,
-  },
-  inputRow: {
-    display: 'flex',
-    gap: '8px',
-    marginBottom: '24px',
-  },
+  title: { margin: '0 0 24px', fontSize: '24px', fontWeight: 600 },
+  inputRow: { display: 'flex', gap: '8px', marginBottom: '24px' },
   input: {
     flex: 1,
     padding: '10px 14px',
@@ -114,16 +189,18 @@ const styles = {
     borderRadius: '6px',
     cursor: 'pointer',
   },
-  feed: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '12px',
-  },
+  feed: { display: 'flex', flexDirection: 'column', gap: '12px' },
   card: {
     background: '#f8fafc',
     border: '1px solid #e2e8f0',
     borderRadius: '8px',
     padding: '14px 16px',
+  },
+  analysisCard: {
+    background: '#f0f7ff',
+    border: '1px solid #bfdbfe',
+    borderRadius: '8px',
+    padding: '16px 18px',
   },
   nodeLabel: {
     fontSize: '11px',
@@ -131,21 +208,13 @@ const styles = {
     textTransform: 'uppercase',
     letterSpacing: '0.05em',
     color: '#64748b',
-    marginBottom: '6px',
+    marginBottom: '8px',
   },
-  content: {
-    fontSize: '14px',
-    lineHeight: '1.6',
-    whiteSpace: 'pre-wrap',
-  },
-  done: {
-    fontSize: '13px',
-    color: '#16a34a',
-    fontWeight: 500,
-  },
-  error: {
-    fontSize: '13px',
-    color: '#dc2626',
-    fontWeight: 500,
-  },
+  summary: { margin: '0 0 12px', fontSize: '14px', lineHeight: '1.6' },
+  section: { marginTop: '16px' },
+  sectionTitle: { fontSize: '13px', fontWeight: 600, color: '#1e40af', marginBottom: '8px' },
+  gapList: { margin: 0, paddingLeft: '20px', fontSize: '14px', lineHeight: '1.7', color: '#374151' },
+  content: { fontSize: '14px', lineHeight: '1.6', whiteSpace: 'pre-wrap' },
+  done: { fontSize: '13px', color: '#16a34a', fontWeight: 500 },
+  error: { fontSize: '13px', color: '#dc2626', fontWeight: 500 },
 }
