@@ -1,6 +1,6 @@
 from typing import Literal
 
-from langchain_anthropic import ChatAnthropic
+from langchain_openai import ChatOpenAI
 from langchain_core.messages import AIMessage, SystemMessage
 from pydantic import BaseModel
 
@@ -20,7 +20,9 @@ _ACTION_TO_NEXT = {
     "synthesize": "synthesizer",
 }
 
-_planner_llm = ChatAnthropic(model=settings.anthropic_model).with_structured_output(PlannerDecision)
+_planner_llm = ChatOpenAI(
+    model=settings.openai_model, api_key=settings.openai_api_key, timeout=60, max_retries=3
+).with_structured_output(PlannerDecision)
 
 
 def planner_node(state: AgentState) -> AgentState:
@@ -39,3 +41,8 @@ def planner_node(state: AgentState) -> AgentState:
         "iteration": iteration + 1,
         "messages": [AIMessage(content=f"[Planner] {decision.reasoning}")],
     }
+
+
+def route_from_planner(state: AgentState) -> Literal["evidence_aggregation", "synthesizer"]:
+    """Conditional edge out of the planner: follow the branch the planner chose."""
+    return state["next_action"]
