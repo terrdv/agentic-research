@@ -1,7 +1,8 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog } from 'electron'
 import { join } from 'path'
 import { spawn } from 'child_process'
 import { existsSync } from 'fs'
+import { writeFile } from 'fs/promises'
 import readline from 'readline'
 
 let pythonProcess = null
@@ -73,6 +74,29 @@ ipcMain.on('agent:query', (_, request) => {
     return
   }
   pythonProcess.stdin.write(JSON.stringify(request) + '\n')
+})
+
+ipcMain.handle('report:export-pdf', async (_, defaultName) => {
+  if (!mainWindow) return { ok: false, error: 'No window' }
+
+  const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+    title: 'Save report as PDF',
+    defaultPath: defaultName || 'research-report.pdf',
+    filters: [{ name: 'PDF', extensions: ['pdf'] }],
+  })
+  if (canceled || !filePath) return { ok: false, canceled: true }
+
+  try {
+    const pdf = await mainWindow.webContents.printToPDF({
+      printBackground: true,
+      pageSize: 'A4',
+      margins: { marginType: 'custom', top: 0.6, bottom: 0.6, left: 0.6, right: 0.6 },
+    })
+    await writeFile(filePath, pdf)
+    return { ok: true, path: filePath }
+  } catch (e) {
+    return { ok: false, error: String(e) }
+  }
 })
 
 app.on('window-all-closed', () => {

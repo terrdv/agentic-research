@@ -9,4 +9,7 @@ class AgentState(TypedDict):
     next_action: str         # "evidence_aggregation" | "synthesizer"
     iteration: int
     max_iterations: int
+    citation_style: str      # "APA" | "MLA" | "Chicago" | "IEEE" | "Harvard"
     analyst_output: Optional[dict]  # serialized AnalystOutput, set by analyst_node
+    sourcesToEvidence: Optional[dict]   #key : url, value: evidence
+    documents: list

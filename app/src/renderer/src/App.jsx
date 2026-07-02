@@ -6,6 +6,8 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts'
 
+const CITATION_STYLES = ['APA', 'MLA', 'Chicago', 'IEEE', 'Harvard']
+
 const NODE_LABELS = {
   planner: 'Planning the approach',
   evidence_aggregation: 'Gathering evidence',
@@ -21,6 +23,8 @@ export default function App() {
   const [report, setReport] = useState('')
   const [analysis, setAnalysis] = useState(null)
   const [errorMsg, setErrorMsg] = useState('')
+  const [exporting, setExporting] = useState('idle') // idle | saving | saved | failed
+  const [citationStyle, setCitationStyle] = useState('APA')
 
   useEffect(() => {
     const handler = (event) => {
@@ -59,7 +63,8 @@ export default function App() {
     setErrorMsg('')
     setPhase(NODE_LABELS.planner)
     setStatus('running')
-    window.agent.query({ query: q, max_iterations: 3 })
+    setExporting('idle')
+    window.agent.query({ query: q, max_iterations: 3, citation_style: citationStyle })
   }
 
   const reset = () => {
@@ -68,6 +73,20 @@ export default function App() {
     setAnalysis(null)
     setErrorMsg('')
     setPhase('')
+    setExporting('idle')
+  }
+
+  const exportPdf = async () => {
+    if (exporting === 'saving') return
+    setExporting('saving')
+    try {
+      const res = await window.agent.exportPdf(pdfName(query))
+      if (res?.ok) setExporting('saved')
+      else if (res?.canceled) setExporting('idle')
+      else setExporting('failed')
+    } catch {
+      setExporting('failed')
+    }
   }
 
   const onKeyDown = (e) => {
@@ -81,12 +100,23 @@ export default function App() {
 
   return (
     <div style={styles.page}>
-      <header style={styles.header}>
+      <header className="no-print" style={styles.header}>
         <span style={styles.wordmark}>Research</span>
         {!idle && (
-          <button style={styles.newBtn} onClick={reset} disabled={status === 'running'}>
-            New search
-          </button>
+          <div style={styles.headerActions}>
+            {status === 'done' && report && (
+              <button
+                style={styles.newBtn}
+                onClick={exportPdf}
+                disabled={exporting === 'saving'}
+              >
+                {EXPORT_LABELS[exporting]}
+              </button>
+            )}
+            <button style={styles.newBtn} onClick={reset} disabled={status === 'running'}>
+              New search
+            </button>
+          </div>
         )}
       </header>
 
@@ -101,7 +131,7 @@ export default function App() {
           </div>
         )}
 
-        <div style={styles.promptWrap}>
+        <div className="no-print" style={styles.promptWrap}>
           <textarea
             style={styles.input}
             value={query}
@@ -113,14 +143,27 @@ export default function App() {
             autoFocus
           />
           <div style={styles.promptRow}>
-            <span style={styles.hint}>Enter to search · Shift+Enter for a new line</span>
-            <button
-              style={{ ...styles.button, ...(canSubmit(query, status) ? {} : styles.buttonDisabled) }}
-              onClick={submit}
-              disabled={!canSubmit(query, status)}
-            >
-              {status === 'running' ? 'Researching…' : 'Research'}
-            </button>
+            <label style={styles.selectLabel}>
+              Citation style
+              <select
+                style={styles.select}
+                value={citationStyle}
+                onChange={(e) => setCitationStyle(e.target.value)}
+                disabled={status === 'running'}
+              >
+                {CITATION_STYLES.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </label>
+            <div style={styles.promptRowRight}>
+              <span style={styles.hint}>Enter to search</span>
+              <button
+                style={{ ...styles.button, ...(canSubmit(query, status) ? {} : styles.buttonDisabled) }}
+                onClick={submit}
+                disabled={!canSubmit(query, status)}
+              >
+                {status === 'running' ? 'Researching…' : 'Research'}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -164,11 +207,23 @@ function canSubmit(query, status) {
 
 function StatusLine({ phase }) {
   return (
-    <div style={styles.statusLine} aria-live="polite">
+    <div className="no-print" style={styles.statusLine} aria-live="polite">
       <span style={styles.dot} />
       <span>{phase || 'Working…'}</span>
     </div>
   )
+}
+
+const EXPORT_LABELS = {
+  idle: 'Save as PDF',
+  saving: 'Saving…',
+  saved: 'Saved ✓',
+  failed: 'Save failed — retry',
+}
+
+function pdfName(query) {
+  const slug = query.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+  return `${(slug || 'research-report').slice(0, 60)}.pdf`
 }
 
 /* ---------- Minimal Markdown renderer (headings, lists, bold/italic/code, links) ---------- */
@@ -307,6 +362,7 @@ const styles = {
     fontFamily: 'var(--font-serif)', fontSize: 20, fontWeight: 600,
     letterSpacing: '0.01em', color: 'var(--color-fg)',
   },
+  headerActions: { display: 'flex', alignItems: 'center', gap: 8 },
   newBtn: {
     fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--color-secondary)',
     background: 'transparent', border: '1px solid var(--color-hairline)',
@@ -336,7 +392,17 @@ const styles = {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
     marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--color-hairline)',
   },
+  promptRowRight: { display: 'flex', alignItems: 'center', gap: 12 },
   hint: { fontSize: 12, color: 'var(--color-muted-fg)' },
+  selectLabel: {
+    display: 'flex', alignItems: 'center', gap: 8,
+    fontSize: 12, color: 'var(--color-muted-fg)',
+  },
+  select: {
+    fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--color-fg)',
+    background: 'var(--color-surface)', border: '1px solid var(--color-hairline)',
+    borderRadius: 'var(--radius)', padding: '5px 8px', cursor: 'pointer',
+  },
   button: {
     fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 700,
     color: '#fff', background: 'var(--color-accent)', border: 'none',

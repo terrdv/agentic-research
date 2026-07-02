@@ -48,6 +48,14 @@ button:hover:not(:disabled) { opacity: 0.9; }
   50% { opacity: 0.35; transform: scale(0.85); }
 }
 
+/* Print / PDF export: show only the report */
+@media print {
+  body { background: #fff; }
+  .no-print { display: none !important; }
+  main { padding: 0 !important; max-width: none !important; }
+  article { margin-top: 0 !important; max-width: none !important; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.001ms !important;

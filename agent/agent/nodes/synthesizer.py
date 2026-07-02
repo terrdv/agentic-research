@@ -11,6 +11,8 @@ _synthesizer_llm = ChatOpenAI(
 
 
 def synthesizer_node(state: AgentState) -> AgentState:
-    messages = [SystemMessage(content=SYNTHESIZER_PROMPT)] + state["messages"]
+    citation_style = state.get("citation_style") or "APA"
+    prompt = SYNTHESIZER_PROMPT.format(citation_style=citation_style)
+    messages = [SystemMessage(content=prompt)] + state["messages"]
     response = _synthesizer_llm.invoke(messages)
     return {"messages": [response]}
